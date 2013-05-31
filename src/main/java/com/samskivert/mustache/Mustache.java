@@ -9,6 +9,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -556,6 +557,23 @@ public class Mustache
                         return outer;
                     }
                 };
+            case '?':
+                requireNoNewlines(tag, tagLine);
+                return new Accumulator(_compiler) {
+                    @Override public boolean justOpenedOrClosedBlock () {
+                        // if we just opened this section, we'll have no segments
+                        return (_segs.isEmpty()) || super.justOpenedOrClosedBlock();
+                    }
+                    @Override public Template.Segment[] finish () {
+                        throw new MustacheParseException(
+                            "Exists section missing close tag '" + tag1 + "'", tagLine);
+                    }
+                    @Override protected Accumulator addCloseSectionSegment (String itag, int line) {
+                        requireSameName(tag1, itag, line);
+                        outer._segs.add(new NotNullSectionSegment(itag, super.finish(), tagLine));
+                        return outer;
+                    }
+                };
 
             case '/':
                 requireNoNewlines(tag, tagLine);
@@ -741,6 +759,28 @@ public class Mustache
                     executeSegs(tmpl, ctx, out);
                 }
             } // TODO: fail?
+        }
+    }
+    protected static class NotNullSectionSegment extends BlockSegment {
+        public NotNullSectionSegment (String name, Template.Segment[] segs, int line) {
+            super(name, segs, line);
+        }
+        @Override public void execute (Template tmpl, Template.Context ctx, Writer out)  {
+            Object value = tmpl.getSectionValue(ctx, _name, _line); // won't return null
+            Iterator<?> iter = tmpl._compiler.collector.toIterator(value);
+            if (iter != null) {
+                if (iter.hasNext()) {
+                    executeSegs(tmpl, ctx, out);
+                }
+            } else if (value instanceof Boolean) {
+                if ((Boolean)value) {
+                    executeSegs(tmpl, ctx, out);
+                }
+            } else if (Collection.class.isAssignableFrom(value.getClass())) {
+                if (!((Collection)value).isEmpty()) {
+                    executeSegs(tmpl, ctx, out);
+                }
+            }
         }
     }
 
