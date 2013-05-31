@@ -643,13 +643,22 @@ public class Mustache
             // we compile our template lazily to avoid infinie recursion if a template includes
             // itself (see issue #13)
             if (_template == null) {
+                Reader reader=null;
                 try {
-                    _template = _compiler.compile(_compiler.loader.getTemplate(_name));
+                    reader = _compiler.loader.getTemplate(_name);
+                    _template = _compiler.compile(reader);
                 } catch (Exception e) {
                     if (e instanceof RuntimeException) {
                         throw (RuntimeException)e;
                     } else {
                         throw new MustacheException("Unable to load template: " + _name, e);
+                    }
+                } finally {
+                    if (reader!=null){
+                        try {
+                            reader.close();
+                        } catch (IOException ex) {
+                        }
                     }
                 }
             }
