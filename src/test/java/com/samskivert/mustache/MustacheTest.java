@@ -127,6 +127,10 @@ public class MustacheTest
         });
     }
 
+    @Test public void testExistsSection () {
+        test("pre1234post", "{{?foo}}pre{{#foo}}{{.}}{{/foo}}post{{/foo}}", context("foo",Arrays.asList(1,2,3,4)));
+    }
+
     @Test public void testNullSectionWithDefaultValue () {
         test(Mustache.compiler().defaultValue(""), "", "{{#foo}}{{bar}}{{/foo}}", new Object() {
             Object foo = null;
